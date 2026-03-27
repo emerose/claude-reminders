@@ -1,0 +1,9 @@
+{
+  "name": "claude-reminders",
+  "version": "0.1.0",
+  "description": "Interact with Apple Reminders on macOS using AppleScript",
+  "author": {
+    "name": "Sam"
+  },
+  "keywords": ["reminders", "apple", "macos", "applescript", "productivity"]
+}

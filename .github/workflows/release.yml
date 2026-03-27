@@ -1,0 +1,70 @@
+name: Release Plugin
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Version tag (e.g. v1.0.0)'
+        required: false
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          elif [ -n "${{ github.event.inputs.tag }}" ]; then
+            echo "version=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=dev-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Package plugin
+        run: |
+          zip -r claude-reminders.plugin . \
+            -x "*.DS_Store" \
+            -x ".git/*" \
+            -x ".github/*" \
+            -x "*.plugin"
+          echo "Plugin packaged: $(ls -lh claude-reminders.plugin)"
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "claude-reminders ${{ steps.version.outputs.version }}"
+          body: |
+            ## claude-reminders ${{ steps.version.outputs.version }}
+
+            A Cowork plugin for interacting with Apple Reminders on macOS via AppleScript.
+
+            ### Installation
+            Download `claude-reminders.plugin` and open it in Cowork to install.
+
+            ### What's included
+            - `/reminders [list-name]` — list incomplete reminders
+            - `/reminder-add <title> [--list <name>] [--due <date>] [--note <text>]` — add a reminder
+            - `/reminder-complete <title> [--list <name>]` — mark a reminder as done
+            - `apple-reminders` skill — natural language Reminders interaction
+          files: claude-reminders.plugin
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload plugin artifact (non-release builds)
+        if: "!startsWith(github.ref, 'refs/tags/')"
+        uses: actions/upload-artifact@v4
+        with:
+          name: claude-reminders-${{ steps.version.outputs.version }}
+          path: claude-reminders.plugin
+          retention-days: 30
